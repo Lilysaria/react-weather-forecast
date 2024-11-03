@@ -1,101 +1,145 @@
-import Image from "next/image";
+'use client';
+
+import Navbar from '@/components/Navbar';
+import axios from 'axios';
+import { useQuery } from '@tanstack/react-query';
+import { format, parseISO } from 'date-fns';
+import Container from '@/components/Container';
+import { convertKelvinToCelsius } from '@/utils/convertKelvinToCelcius';
+
+type WeatherData = {
+  cod: string;
+  message: number;
+  cnt: number;
+  list: Forecast[];
+  city: {
+    id: number;
+    name: string;
+    coord: {
+      lat: number;
+      lon: number;
+    };
+    country: string;
+    population: number;
+    timezone: number;
+    sunrise: number;
+    sunset: number;
+  };
+};
+
+type Forecast = {
+  dt: number;
+  main: {
+    temp: number;
+    feels_like: number;
+    temp_min: number;
+    temp_max: number;
+    pressure: number;
+    sea_level: number;
+    grnd_level: number;
+    humidity: number;
+    temp_kf: number;
+  };
+  weather: Weather[];
+  clouds: {
+    all: number;
+  };
+  wind: {
+    speed: number;
+    deg: number;
+    gust?: number;
+  };
+  visibility: number;
+  pop: number;
+  rain?: {
+    '3h': number;
+  };
+  snow?: {
+    '3h': number;
+  };
+  sys: {
+    pod: string;
+  };
+  dt_txt: string;
+};
+
+type Weather = {
+  id: number;
+  main: string;
+  description: string;
+  icon: string;
+};
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const { isLoading, error, data } = useQuery<WeatherData>({
+    queryKey: ['repoData'],
+    queryFn: async () => {
+      const { data } = await axios.get(
+        `https://api.openweathermap.org/data/2.5/forecast?q=London&appid=${process.env.NEXT_PUBLIC_WEATHER_KEY}&cnt=56`
+      );
+      return data;
+    },
+  });
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+  const firstData = data?.list[0];
+
+  console.log('data', data?.city.name); // log data to see its structure
+
+  if (isLoading)
+    return (
+      <div className="flex items-center min-h-screen justify-center">
+        <p className="animate-bounce"> Loading...</p>
+      </div>
+    );
+
+  return (
+    <div className="flex flex-col gap-4 bg-gray-100 min-h-screen">
+      <Navbar />
+      <main className="px-3 max-w-7x1 mx-auto flex flex-col gap-9 w-full pb-0 pt-4">
+        <section className="space-y-4">
+          <div className="space-y-2">
+            <h2 className="flex gap-1 text-2x1 items-end "></h2>
+            <p>{format(parseISO(firstData?.dt_txt ?? ''), 'EEEE')}</p>
+            <p className="text-lg">
+              {format(parseISO(firstData?.dt_txt ?? ''), 'dd.MM.yyyy')}
+            </p>
+            <Container className="gap-10 px-6 items-center">
+              {/* temperate */}
+              <div className="flex flex-col px-4">
+                <span className="text-5x1">
+                  {convertKelvinToCelsius(firstData?.main.temp ?? 296.37)}°
+                </span>
+                <p className="text-xs space-x-1 whitespace-nowrap"></p>
+                <p className="text-xs space-x-2">
+                  <span>
+                    {convertKelvinToCelsius(firstData?.main.temp_min ?? 0)}° °↓{' '}
+                  </span>
+                  <span>
+                    {' '}
+                    {convertKelvinToCelsius(firstData?.main.temp_max ?? 0)}
+                    °↑
+                  </span>
+                </p>
+              </div>
+              {/* time and  weather icon */}
+              <div className="flex gap-10 sm-gap-16 overflow-x-auto w-full justify-content pr-3">
+                {data?.list.map((d, i) => (
+                  <div
+                    key={i}
+                    className="flex flex-col justify-between gap-2 items-center text-xs
+  font-semibold"
+                  >
+                    <p>{format(parseISO(d.dt_txt), 'h:mm a')}</p>
+                  </div>
+                ))}
+              </div>
+            </Container>
+          </div>
+        </section>
+
+        {/* 7 dats forecast data */}
+        <section></section>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
